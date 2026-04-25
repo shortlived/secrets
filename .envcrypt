@@ -1,0 +1,8 @@
+# .envcrypt — list of files managed by transcrypt (encrypted at rest in git)
+# Format: one file path per line (relative to repo root)
+# After configuring transcrypt, add sensitive files here and commit the pattern
+# in .gitattributes:  <path>  filter=crypt diff=crypt
+
+# Example (uncomment and add your files):
+# config/secrets.env
+# config/credentials.json

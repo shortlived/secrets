@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#MISE description="Update current feature branch: rebase it onto origin/develop, then commit any resulting changes"
+# Usage: mise run vcs:rebase
+#
+# Workflow:
+#   git checkout feature/XXXXXX          (must already be on your branch)
+#   git pull --rebase origin develop
+#   git commit -m "feature/XXXXXX: rebase onto develop"   (if needed)
+set -euo pipefail
+
+source "$(git rev-parse --show-toplevel)/scripts/colors.sh" 2>/dev/null || true
+
+branch=$(git branch --show-current)
+
+if [ -z "$branch" ]; then
+  echo -e "${RED:-}ERROR: not on a branch (detached HEAD?)${ENDCOLOR:-}"
+  exit 1
+fi
+
+if [ "$branch" = "main" ] || [ "$branch" = "develop" ]; then
+  echo -e "${RED:-}ERROR: run vcs:rebase from your feature branch, not from '${branch}'.${ENDCOLOR:-}"
+  exit 1
+fi
+
+echo -e "${CYAN:-}Rebasing '${branch}' onto origin/develop...${ENDCOLOR:-}"
+
+git fetch origin develop
+
+git pull --rebase origin develop
+
+# If the rebase left unstaged/uncommitted changes (shouldn't normally happen with
+# --rebase, but guard for autoStash scenarios), commit them with a chore label.
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  msg="${branch}: rebase onto develop (chore)"
+  git add -A
+  git commit -m "${msg}"
+  echo -e "${YELLOW:-}  Committed pending changes: ${msg}${ENDCOLOR:-}"
+fi
+
+echo -e "${GREEN:-}✓ '${branch}' is up to date with origin/develop${ENDCOLOR:-}"
+echo ""
+echo "Next: open or update your PR targeting develop."
+echo "When approved, run: mise run vcs:integrate"

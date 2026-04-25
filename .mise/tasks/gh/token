@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Display current gh CLI auth status"
+set -euo pipefail
+gh auth status 2>&1 || { echo "Not authenticated. Run: gh auth login"; exit 1; }

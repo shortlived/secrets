@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Run the Python application"
+set -euo pipefail
+python -m python_template "$@"

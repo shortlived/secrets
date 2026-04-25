@@ -1,0 +1,36 @@
+# mise.toml — tool versions and environment for the Python 3 template
+# Run `mise tasks` for a full list with descriptions.
+# Run `mise run <task>` to execute a task.
+# Docs: https://mise.jdx.dev/
+#
+# Template profile: python-3.14-uv-ty-ruff
+# This identifier is used by the mise-sync project to select which
+# task directory and git-hooks directory bundle to apply.
+
+[settings]
+experimental = true
+
+[tools]
+python = "3.13"
+uv = "latest"
+ruff = "latest"
+
+# delta — better git diffs in the terminal
+delta = "latest"
+
+[env]
+# Ensure uv uses the project-local venv
+UV_PROJECT_ENVIRONMENT = "{{config_root}}/.venv"
+VIRTUAL_ENV = "{{config_root}}/.venv"
+# Make scripts on PATH inside the venv
+PATH = "{{config_root}}/.venv/bin:{{env.PATH}}"
+
+# ─── Git hooks version ────────────────────────────────────────────────────────
+# Bump this SHA/tag when you want to sync a new hooks bundle.
+# The sync task reads this to know which ref to pull from orchestras/git-hooks.
+GITHOOKS_VERSION = "main"
+GITHOOKS_REPO = "orchestras/git-hooks"
+
+# ─── Task discovery ───────────────────────────────────────────────────────────
+[task_config]
+includes = [".mise/tasks"]

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Lint the source code with Ruff"
+set -euo pipefail
+ruff check src/ tests/

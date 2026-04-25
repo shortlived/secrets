@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#MISE description="Push Docker image to configured registry"
+set -euo pipefail
+
+version=$(python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+print(data['project']['version'])
+")
+name=$(python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+print(data['project']['name'])
+")
+
+repo="${DOCKER_REPO:-ghcr.io/orchestras}"
+docker push "${repo}/${name}:${version}"
+echo "✓ Pushed ${repo}/${name}:${version}"

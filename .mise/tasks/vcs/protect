@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#MISE description="Apply branch protection rulesets to develop and main via GitHub API"
+set -euo pipefail
+
+if ! gh auth status &>/dev/null; then
+  echo "ERROR: gh CLI is not authenticated. Run: gh auth login"
+  exit 1
+fi
+
+REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner')
+echo "Repository: ${REPO}"
+
+if ! git ls-remote --heads origin develop | grep -q develop; then
+  echo "Creating develop branch from main..."
+  git checkout main && git pull origin main
+  git checkout -b develop && git push -u origin develop
+fi
+
+gh api -X PATCH "repos/${REPO}" -f default_branch=develop --silent
+echo "✓ Default branch set to develop"
+
+gh api -X POST "repos/${REPO}/rulesets" --input - <<'RULES' || echo "Ruleset may already exist."
+{
+  "name": "Protect develop and main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main", "refs/heads/develop"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_last_push_approval": false,
+        "require_code_owner_review": true
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "pr-check / lint" },
+          { "context": "pr-check / typecheck" },
+          { "context": "pr-check / test" },
+          { "context": "pr-check / security" }
+        ]
+      }
+    },
+    { "type": "non_fast_forward" },
+    { "type": "deletion" }
+  ]
+}
+RULES
+
+echo "✓ Branch protection ruleset applied"

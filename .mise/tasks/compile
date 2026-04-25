@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#MISE description="Compile a one-file binary with PyInstaller to ./bin/"
+set -euo pipefail
+
+if ! python -c "import PyInstaller" &>/dev/null; then
+  echo "PyInstaller not installed. Run: mise run install"
+  exit 1
+fi
+
+version=$(python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+print(data['project']['version'])
+")
+
+name=$(python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+print(data['project']['name'])
+")
+
+mkdir -p bin
+
+platform=$(python -c "
+import platform
+s = platform.system().lower()
+m = platform.machine().lower()
+m = 'amd64' if m in ('x86_64', 'amd64') else ('arm64' if m in ('arm64', 'aarch64') else m)
+print(f'{s}-{m}')
+")
+
+echo "Building standalone binary for ${platform}..."
+pyinstaller \
+  --onefile \
+  --clean \
+  --name "${name}-${platform}" \
+  --distpath bin \
+  --workpath build/pyinstaller \
+  --specpath build \
+  src/python_template/__main__.py
+
+echo ""
+echo "✓ Binary compiled: bin/${name}-${platform}"
+echo "  Version: ${version}"

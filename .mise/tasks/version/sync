@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#MISE description="Fetch remote tags and sync pyproject.toml + version.py to latest"
+set -euo pipefail
+
+echo "Fetching tags from origin..."
+git fetch --tags origin
+
+tag=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '+' | head -n 1)
+if [ -z "$tag" ]; then
+  echo "No semver tags found — defaulting to v0.1.0"
+  tag="v0.1.0"
+fi
+
+ver="${tag#v}"
+
+python -c "
+import re, pathlib, sys
+ver = '${ver}'
+p = pathlib.Path('pyproject.toml')
+content = p.read_text()
+updated = re.sub(r'^version = \"[^\"]+\"', f'version = \"{ver}\"', content, count=1, flags=re.MULTILINE)
+if content == updated:
+    print(f'Version already {ver} — no change', file=sys.stderr)
+else:
+    p.write_text(updated)
+    print(f'Updated pyproject.toml to {ver}')
+"
+
+mise run build
+
+echo "✓ Version synced to ${tag} (pyproject.toml: ${ver})"

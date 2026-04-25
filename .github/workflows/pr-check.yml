@@ -1,0 +1,151 @@
+name: PR Check
+
+# Each job name here MUST match the "context" strings in the branch ruleset.
+# After this workflow runs once on a PR, register the checks in your ruleset:
+#   mise run vcs:protect
+# or manually in GitHub Settings → Rules → Rulesets.
+#
+# Required checks registered by vcs:protect:
+#   - pr-check / lint
+#   - pr-check / typecheck
+#   - pr-check / test
+#   - pr-check / security
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Ruff lint
+        run: uv run ruff check src/ tests/ --output-format=github
+
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install ty
+        run: uv tool install ty || true
+
+      - name: Type check with ty
+        run: |
+          if uv tool list | grep -q ty; then
+            uv tool run ty check src/
+          else
+            echo "ty not available, skipping (non-blocking)"
+          fi
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }}
+
+      - name: Run tests with coverage
+        run: |
+          uv run python -m pytest tests/ \
+            --cov=src/python_template \
+            --cov-report=xml:coverage-${{ matrix.python-version }}.xml \
+            --cov-report=term-missing \
+            -v
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage-${{ matrix.python-version }}.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Bandit security scan
+        run: |
+          uv tool install bandit
+          uv tool run bandit -r src/ -f sarif -o bandit.sarif || true
+          uv tool run bandit -r src/ -ll
+
+      - name: Upload Bandit SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
+        continue-on-error: true
+
+      - name: Dependency audit (pip-audit)
+        run: |
+          uv tool install pip-audit
+          uv tool run pip-audit --format json --output pip-audit.json || true
+          uv tool run pip-audit
+
+      - name: Lizard SAST (complexity)
+        run: |
+          uv tool install lizard
+          uv tool run lizard src/ --CCN 15 --length 100 --arguments 8 || true

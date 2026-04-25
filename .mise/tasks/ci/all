@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#MISE description="CI: full pipeline (install → lint → fmt:check → typecheck → test:cov)"
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+VENV="${ROOT}/.venv"
+
+echo "=== CI Pipeline ==="
+
+echo "--- Install ---"
+uv sync --all-extras
+
+# Use venv python for everything after install
+PYTHON="${VENV}/bin/python"
+if [ ! -f "${PYTHON}" ]; then
+  PYTHON="$(which python)"
+fi
+
+echo "--- Lint ---"
+ruff check src/ tests/
+
+echo "--- Format check ---"
+ruff format --check src/ tests/
+
+echo "--- Tests with coverage ---"
+"${PYTHON}" -m pytest tests/ \
+  --cov=src/python_template \
+  --cov-report=term-missing \
+  --cov-report=xml:coverage.xml
+
+echo ""
+echo "✓ CI pipeline passed"

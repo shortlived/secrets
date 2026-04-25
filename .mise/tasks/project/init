@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#MISE description="Full project init: install deps, git config, sync tags, bootstrap hooks"
+set -euo pipefail
+
+echo "=== Project Initialisation ==="
+
+echo "1/5 Installing dependencies..."
+uv sync --all-extras
+
+echo "2/5 Configuring local git..."
+mise run git:config || echo "⚠  git config skipped"
+
+echo "3/5 Syncing tags from remote..."
+git fetch --tags origin 2>/dev/null || echo "⚠  tag sync skipped (no remote)"
+
+echo "4/5 Syncing version..."
+mise run version:sync || echo "⚠  version sync skipped"
+
+echo "5/5 Installing shell completions..."
+mise run completions || true
+
+echo ""
+echo "✓ Project initialised. Run 'mise tasks' for all available tasks."
