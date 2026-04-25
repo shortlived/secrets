@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#MISE description="Subscribe to a new patterns channel (non-interactive; use PATTERNS_CHANNEL + PATTERNS_REPO env vars)"
+set -euo pipefail
+
+# ── Terminal colours ──────────────────────────────────────────────────────────
+CYAN='\033[0;36m'; GREEN='\033[0;32m'; BOLD='\033[1m'; RESET='\033[0m'
+CHECK="✓"; ARROW="→"
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+REPO="${1:-${PATTERNS_REPO:-orchestras/dev-patterns}}"
+CHANNEL="${2:-${PATTERNS_CHANNEL:-python3a}}"
+
+echo -e "${CYAN}${BOLD}Patterns Subscribe${RESET}"
+echo -e "  ${ARROW} Repo:    ${REPO}"
+echo -e "  ${ARROW} Channel: ${CHANNEL}"
+echo ""
+
+PATTERNS_REPO="${REPO}" PATTERNS_CHANNEL="${CHANNEL}" mise run patterns:setup "${REPO}" "${CHANNEL}"
+
+echo ""
+echo -e "${GREEN}${BOLD}${CHECK} Subscribed to ${CHANNEL} @ ${REPO}${RESET}"

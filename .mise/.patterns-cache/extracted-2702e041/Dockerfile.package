@@ -1,0 +1,50 @@
+# Dockerfile.package — multi-stage build for a minimal Python production image
+# Build: docker buildx bake package
+# Or: mise run docker:build
+
+ARG PYTHON_VERSION=3.13
+ARG TAG=0.1.0
+
+# ─── Builder stage ────────────────────────────────────────────────────────────
+FROM python:${PYTHON_VERSION}-slim AS builder
+
+# Install uv for fast dependency installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Copy dependency files first (layer cache)
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy source
+COPY src/ ./src/
+RUN uv sync --frozen --no-dev
+
+# ─── Runtime stage ────────────────────────────────────────────────────────────
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+# Create non-root user
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --no-create-home --shell /bin/false appuser
+
+WORKDIR /app
+
+# Copy the virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+
+# Set PATH to use venv
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER appuser
+
+ENTRYPOINT ["python", "-m", "python_template"]
+CMD ["hello"]
+
+LABEL org.opencontainers.image.title="python-template"
+LABEL org.opencontainers.image.description="Python 3 template application"
+LABEL org.opencontainers.image.source="https://github.com/orchestras/python3"
+LABEL org.opencontainers.image.version="${TAG}"

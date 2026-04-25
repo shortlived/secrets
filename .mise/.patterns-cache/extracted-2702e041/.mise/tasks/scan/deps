@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#MISE description="Audit Python dependencies for known vulnerabilities (pip-audit)"
+set -euo pipefail
+
+if command -v pip-audit &>/dev/null; then
+  pip-audit
+elif uv tool list 2>/dev/null | grep -q pip-audit; then
+  uv tool run pip-audit
+else
+  uv tool install pip-audit
+  uv tool run pip-audit
+fi

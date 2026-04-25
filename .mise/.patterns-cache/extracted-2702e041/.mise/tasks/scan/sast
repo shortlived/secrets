@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#MISE description="Run SAST: lizard complexity analysis + bandit security scan"
+set -euo pipefail
+
+echo "=== SAST Scan ==="
+
+echo ""
+echo "--- Lizard (cyclomatic complexity) ---"
+if command -v lizard &>/dev/null; then
+  lizard src/ --CCN 15 --length 100 --arguments 8
+elif python -c "import lizard" &>/dev/null 2>&1; then
+  python -m lizard src/ --CCN 15 --length 100 --arguments 8
+else
+  echo "lizard not found. Installing..."
+  uv tool install lizard
+  uv tool run lizard src/ --CCN 15 --length 100 --arguments 8
+fi
+
+echo ""
+echo "--- Bandit (security) ---"
+if command -v bandit &>/dev/null; then
+  bandit -r src/ -ll
+elif uv tool list 2>/dev/null | grep -q bandit; then
+  uv tool run bandit -r src/ -ll
+else
+  uv tool install bandit
+  uv tool run bandit -r src/ -ll
+fi
+
+echo ""
+echo "✓ SAST scan complete"

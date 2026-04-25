@@ -2,7 +2,7 @@
 #MISE description="Run the test suite with coverage reporting"
 set -euo pipefail
 python -m pytest tests/ \
-  --cov=src/python_template \
+  --cov=src/sls \
   --cov-report=term-missing \
   --cov-report=html:htmlcov \
   --cov-report=xml:coverage.xml \

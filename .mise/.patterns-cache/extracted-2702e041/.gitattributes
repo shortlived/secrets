@@ -1,0 +1,28 @@
+# Auto-detect text files and normalise line endings to LF on checkout
+* text=auto eol=lf
+
+# Python
+*.py text diff=python
+*.pyi text diff=python
+
+# Shell scripts
+*.sh text eol=lf
+.mise/tasks/* text eol=lf
+
+# Config files
+*.toml text
+*.yml  text
+*.yaml text
+*.json text
+*.md   text
+*.rst  text
+
+# Binaries — never diff/merge
+*.exe  binary
+*.pyc  binary
+*.pyd  binary
+*.so   binary
+*.dll  binary
+
+# Explicitly mark lock files as text to avoid spurious diffs
+uv.lock text

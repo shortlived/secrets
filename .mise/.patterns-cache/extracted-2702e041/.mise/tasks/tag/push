@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Push all local tags to origin (triggers release workflow)"
+set -euo pipefail
+git push origin --tags
+echo "✓ Tags pushed — release workflow will fire on any new v* tags"

@@ -23,7 +23,7 @@ print('Updated pyproject.toml to ${new_ver}')
 
 mise run build
 
-git add pyproject.toml src/python_template/version.py
+git add pyproject.toml src/sls/version.py
 git commit -m "chore: bump version ${latest} → ${new_tag}"
 
 git tag -l | grep -qx "${new_tag}" || git tag -a "${new_tag}" -m "${new_tag}"

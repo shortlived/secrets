@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# pre-push — runs on `git push`
+# Guards:
+#   - Tests must pass before pushing any branch
+#   - Direct (non-force-with-lease) pushes to main are blocked unless
+#     they come from a release flow (the remote ref is an ancestor of local)
+set -euo pipefail
+
+source "$(git rev-parse --show-toplevel)/scripts/colors.sh" 2>/dev/null || true
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+REMOTE="$1"
+
+echo -e "${CYAN:-}[pre-push]${ENDCOLOR:-} Running pre-push checks (remote: ${REMOTE})..."
+
+# Read the refs being pushed from stdin
+while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+  target_branch="${remote_ref#refs/heads/}"
+
+  # For pushes to main: verify local main is a rebase of origin/develop,
+  # not just an arbitrary push. We check that origin/develop is an ancestor
+  # of the tip being pushed.
+  if [ "${target_branch}" = "main" ]; then
+    if git rev-parse --verify origin/develop &>/dev/null; then
+      if ! git merge-base --is-ancestor origin/develop "${local_sha}" 2>/dev/null; then
+        echo -e "${RED:-}✗ Refusing push to main: local main does not contain origin/develop.${ENDCOLOR:-}"
+        echo ""
+        echo "  Run: mise run vcs:release"
+        echo "  This rebases main onto origin/develop before pushing."
+        exit 1
+      fi
+    fi
+  fi
+done
+
+# Run tests before pushing (skip in CI — GitHub Actions sets CI=true)
+if [ "${CI:-false}" != "true" ] && [ -d "tests" ] && [ -f ".venv/bin/python" ]; then
+  echo -e "  ${BLUE:-}→ running tests...${ENDCOLOR:-}"
+  .venv/bin/python -m pytest tests/ -q --tb=short || {
+    echo -e "${RED:-}✗ Tests failed. Fix before pushing.${ENDCOLOR:-}"
+    exit 1
+  }
+fi
+
+echo -e "${GREEN:-}✓ pre-push checks passed${ENDCOLOR:-}"

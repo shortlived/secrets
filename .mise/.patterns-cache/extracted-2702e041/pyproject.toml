@@ -1,0 +1,184 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dev-patterns"
+version = "0.1.0"
+description = "Central patterns library: git hooks, mise tasks, and subscription channels for orchestras repositories"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [{ name = "ørchestras", email = "dev@orchestras.io" }]
+keywords = ["githooks", "mise", "patterns", "devtools", "orchestras"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+# No third-party runtime dependencies — stdlib only for maximum portability
+dependencies = []
+
+
+[project.scripts]
+dev-patterns = "dev_patterns.__main__:main"
+
+[project.urls]
+Homepage   = "https://github.com/orchestras/dev-patterns"
+Repository = "https://github.com/orchestras/dev-patterns"
+Changelog  = "https://github.com/orchestras/dev-patterns/blob/main/CHANGELOG.md"
+
+# ─── Hatch ───────────────────────────────────────────────────────────────────
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dev_patterns"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/",
+  "lib/",
+  "tests/",
+  "scripts/",
+  "README.md",
+  "LICENSE",
+  "CHANGELOG.md",
+]
+
+# ─── UV ──────────────────────────────────────────────────────────────────────
+
+[tool.uv]
+# uv uses dependency-groups for dev dependencies (PEP 735)
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "pytest-xdist>=3.8.0",
+  "pytest-asyncio>=0.24",
+  "coverage[toml]>=7.13.5",
+  "pyinstaller>=6.19.0",
+]
+
+# ─── Ruff ────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+exclude = [
+  ".git",
+  ".ruff_cache",
+  ".uv",
+  "__pycache__",
+  "dist",
+  "build",
+  "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # Pyflakes
+  "I",    # isort
+  "B",    # flake8-bugbear
+  "C4",   # flake8-comprehensions
+  "UP",   # pyupgrade
+  "N",    # pep8-naming
+  "S",    # flake8-bandit (security)
+  "T20",  # flake8-print
+  "RET",  # flake8-return
+  "SIM",  # flake8-simplify
+  "TCH",  # flake8-type-checking
+  "ANN",  # flake8-annotations
+  "D",    # pydocstyle
+  "PT",   # flake8-pytest-style
+  "ERA",  # eradicate (commented-out code)
+  "PL",   # Pylint
+  "TRY",  # tryceratops
+  "PERF", # perflint
+  "RUF",  # Ruff-specific rules
+]
+ignore = [
+  "D100",    # Missing docstring in public module
+  "D104",    # Missing docstring in public package
+  "D203",    # 1 blank line required before class docstring (conflicts with D211)
+  "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
+  "TRY003",  # Avoid specifying long messages outside the exception class
+  "S101",    # Use of assert detected (allow in tests)
+  "T201",    # Allow print statements (CLI output + scripts)
+  "PLC0415", # Allow imports inside functions (lazy imports for CLI startup)
+  "ANN401",  # Any is needed for **kwargs in abstract base classes
+  "S310",    # urllib.request.urlopen is intentional (no third-party deps)
+  "S603",    # subprocess call is intentional (gh CLI wrapper)
+  "S607",    # partial path for subprocess is intentional (gh, curl)
+  "TC001",   # app imports used at runtime in dataclass field annotations
+  "TC003",   # stdlib Path used at runtime (dataclass fields + method bodies)
+  "PLR2004", # magic values in version spec comparisons (len 1 and 4)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py"                      = ["S101", "ANN", "D", "PLR2004", "TCH", "TC"]
+"src/dev_patterns/version.py"        = ["ERA001"]
+"scripts/sync_patterns.py"           = ["ANN", "D", "T201", "PLR2004", "ERA", "S603", "S607", "S310"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["dev_patterns"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# ─── Ty (type checker) ───────────────────────────────────────────────────────
+
+[tool.ty]
+# ty is the new type checker from Astral (replaces mypy for Ruff ecosystem)
+
+# ─── Pytest ──────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+  "--tb=short",
+  "-ra",
+]
+markers = [
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "integration: marks tests as integration tests",
+  "unit: marks tests as unit tests",
+]
+asyncio_mode = "auto"
+
+# ─── Coverage ────────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["src/dev_patterns"]
+branch = true
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "if TYPE_CHECKING:",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+]
+show_missing = true
+fail_under = 80

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#MISE description="Build the release Docker image"
+set -euo pipefail
+
+version=$(python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+print(data['project']['version'])
+")
+
+docker buildx bake package --set "package.args.TAG=${version}"
+echo "✓ Docker image built: version=${version}"

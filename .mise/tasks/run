@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-#MISE description="Run the Python application"
+#MISE description="Run the sls CLI"
 set -euo pipefail
-python -m python_template "$@"
+python -m sls "$@"

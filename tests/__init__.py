@@ -1,1 +1,1 @@
-"""Test suite for python-template."""
+"""Test suite for sls (Short-Lived Secrets)."""

@@ -1,4 +1,4 @@
-"""Tests for the __main__ CLI entry point."""
+"""Tests for the sls __main__ CLI entry point."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import pytest
 
 def test_main_no_args(capsys: pytest.CaptureFixture[str]) -> None:
     """Running with no args prints help and exits 0."""
-    from python_template.__main__ import main
+    from sls.__main__ import main
 
     original = sys.argv
-    sys.argv = ["python-template"]
+    sys.argv = ["sls"]
     try:
         with pytest.raises(SystemExit) as exc_info:
             main()
@@ -22,74 +22,46 @@ def test_main_no_args(capsys: pytest.CaptureFixture[str]) -> None:
         sys.argv = original
 
 
-def test_main_greet_default(capsys: pytest.CaptureFixture[str]) -> None:
-    """greet with no --name prints 'Hello, world!'."""
-    from python_template.__main__ import main
-
-    original = sys.argv
-    sys.argv = ["python-template", "greet"]
-    try:
-        main()
-    finally:
-        sys.argv = original
-
-    captured = capsys.readouterr()
-    assert "Hello, world!" in captured.out
-
-
-def test_main_greet_named(capsys: pytest.CaptureFixture[str]) -> None:
-    """greet --name Alice prints 'Hello, Alice!'."""
-    from python_template.__main__ import main
-
-    original = sys.argv
-    sys.argv = ["python-template", "greet", "--name", "Alice"]
-    try:
-        main()
-    finally:
-        sys.argv = original
-
-    captured = capsys.readouterr()
-    assert "Hello, Alice!" in captured.out
-
-
-def test_main_greet_loud(capsys: pytest.CaptureFixture[str]) -> None:
-    """greet --loud prints uppercase greeting."""
-    from python_template.__main__ import main
-
-    original = sys.argv
-    sys.argv = ["python-template", "greet", "--loud"]
-    try:
-        main()
-    finally:
-        sys.argv = original
-
-    captured = capsys.readouterr()
-    assert "HELLO, WORLD!" in captured.out
-
-
-def test_main_info(capsys: pytest.CaptureFixture[str]) -> None:
-    """info command prints version string."""
-    from python_template.__main__ import main
-    from python_template.version import __version__
-
-    original = sys.argv
-    sys.argv = ["python-template", "info"]
-    try:
-        main()
-    finally:
-        sys.argv = original
-
-    captured = capsys.readouterr()
-    assert __version__ in captured.out
-
-
 def test_main_version_flag() -> None:
     """--version flag exits 0 with version string."""
     result = subprocess.run(
-        [sys.executable, "-m", "python_template", "--version"],
+        [sys.executable, "-m", "sls", "--version"],
         capture_output=True,
         text=True,
         check=False,
+        env={**__import__("os").environ, "SLS_COMPILETIMEHASH": "a" * 64},
     )
     assert result.returncode == 0
-    assert "python-template" in result.stdout or "python-template" in result.stderr
+    assert "sls" in result.stdout or "sls" in result.stderr
+
+
+def test_main_status_no_cache() -> None:
+    """sls status exits non-zero when no cache exists."""
+    result = subprocess.run(
+        [sys.executable, "-m", "sls", "status"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            **__import__("os").environ,
+            "SLS_COMPILETIMEHASH": "a" * 64,
+            "PYTHON_KEYRING_BACKEND": "keyring.backends.null.Keyring",
+        },
+    )
+    assert result.returncode != 0
+    assert "acquiesce" in result.stderr.lower() or "acquiesce" in result.stdout.lower()
+
+
+def test_main_help_contains_commands() -> None:
+    """Top-level --help lists all expected sub-commands."""
+    result = subprocess.run(
+        [sys.executable, "-m", "sls", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**__import__("os").environ, "SLS_COMPILETIMEHASH": "a" * 64},
+    )
+    assert result.returncode == 0
+    output = result.stdout + result.stderr
+    for cmd in ("acquiesce", "push", "rotate", "status", "pull"):
+        assert cmd in output, f"'{cmd}' not found in --help output"

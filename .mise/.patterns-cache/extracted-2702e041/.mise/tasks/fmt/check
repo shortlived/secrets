@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Check formatting without writing (Ruff)"
+set -euo pipefail
+ruff format --check src/ tests/
