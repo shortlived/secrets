@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Show the current version from pyproject.toml"
+set -euo pipefail
+python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+print(data['project']['version'])
+"

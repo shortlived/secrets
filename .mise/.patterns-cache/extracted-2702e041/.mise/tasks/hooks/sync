@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#MISE description="Sync git hooks from orchestras/git-hooks at GITHOOKS_VERSION"
+set -euo pipefail
+
+HOOKS_REPO="${GITHOOKS_REPO:-orchestras/git-hooks}"
+HOOKS_VERSION="${GITHOOKS_VERSION:-main}"
+HOOKS_DIR="config/githooks/hooks"
+CACHE_DIR=".mise/.githooks-cache"
+
+echo "Syncing hooks from ${HOOKS_REPO}@${HOOKS_VERSION}..."
+mkdir -p "${CACHE_DIR}" "${HOOKS_DIR}"
+
+TARBALL="${CACHE_DIR}/hooks-${HOOKS_VERSION}.tar.gz"
+
+if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+  gh api "repos/${HOOKS_REPO}/tarball/${HOOKS_VERSION}" \
+    --header "Accept: application/vnd.github+json" \
+    > "${TARBALL}" 2>/dev/null || \
+  curl -sSfL "https://github.com/${HOOKS_REPO}/archive/${HOOKS_VERSION}.tar.gz" -o "${TARBALL}"
+else
+  curl -sSfL "https://github.com/${HOOKS_REPO}/archive/${HOOKS_VERSION}.tar.gz" -o "${TARBALL}"
+fi
+
+EXTRACT_DIR="${CACHE_DIR}/extracted"
+rm -rf "${EXTRACT_DIR}"
+mkdir -p "${EXTRACT_DIR}"
+tar -xzf "${TARBALL}" -C "${EXTRACT_DIR}" --strip-components=1
+
+if [ -d "${EXTRACT_DIR}/hooks" ]; then
+  cp -r "${EXTRACT_DIR}/hooks/." "${HOOKS_DIR}/"
+  find "${HOOKS_DIR}" -type f -exec chmod +x {} \;
+  echo "✓ Hooks synced → ${HOOKS_DIR}/"
+else
+  echo "⚠  No hooks/ directory found in ${HOOKS_REPO}"
+fi
+
+git config --local core.hooksPath "${HOOKS_DIR}"
+echo "✓ core.hooksPath = ${HOOKS_DIR}"

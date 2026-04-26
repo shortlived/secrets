@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# pre-commit — runs on `git commit`
+# Checks: ruff lint, ruff format, no debug breakpoints, no large files, lizard complexity
+set -euo pipefail
+
+source "$(git rev-parse --show-toplevel)/scripts/colors.sh" 2>/dev/null || true
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo -e "${CYAN:-}[pre-commit]${ENDCOLOR:-} Running pre-commit checks..."
+
+# Staged Python files only
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+
+if [ -n "$STAGED_PY" ]; then
+  count=$(echo "$STAGED_PY" | wc -l | tr -d ' ')
+  echo "  Staged Python files: ${count}"
+
+  # Ruff lint
+  echo -e "  ${BLUE:-}→ ruff check${ENDCOLOR:-}"
+  # shellcheck disable=SC2086
+  echo "$STAGED_PY" | xargs ruff check --quiet || {
+    echo -e "${RED:-}✗ Ruff lint failed. Run: mise run lint:fix${ENDCOLOR:-}"
+    exit 1
+  }
+
+  # Ruff format
+  echo -e "  ${BLUE:-}→ ruff format --check${ENDCOLOR:-}"
+  # shellcheck disable=SC2086
+  echo "$STAGED_PY" | xargs ruff format --check --quiet || {
+    echo -e "${RED:-}✗ Ruff format check failed. Run: mise run fmt${ENDCOLOR:-}"
+    exit 1
+  }
+
+  # Block debug statements
+  if echo "$STAGED_PY" | xargs grep -lnE 'breakpoint\(\)|pdb\.set_trace\(\)' 2>/dev/null; then
+    echo -e "${RED:-}✗ Debug statements found. Remove before committing.${ENDCOLOR:-}"
+    exit 1
+  fi
+
+  # Lizard: cyclomatic complexity check on staged files
+  echo -e "  ${BLUE:-}→ lizard (complexity)${ENDCOLOR:-}"
+  LIZARD_CMD=""
+  if command -v lizard &>/dev/null; then
+    LIZARD_CMD="lizard"
+  elif python -c "import lizard" &>/dev/null 2>&1; then
+    LIZARD_CMD="python -m lizard"
+  fi
+
+  if [ -n "$LIZARD_CMD" ]; then
+    # Build file list for lizard (space-separated)
+    FILES=$(echo "$STAGED_PY" | tr '\n' ' ')
+    # shellcheck disable=SC2086
+    $LIZARD_CMD $FILES --CCN 15 --length 100 --arguments 8 --warnings_only || {
+      echo -e "${RED:-}✗ Lizard complexity check failed. Reduce function complexity (CCN > 15).${ENDCOLOR:-}"
+      exit 1
+    }
+  else
+    echo "  ⚠  lizard not found, skipping complexity check (install: uv tool install lizard)"
+  fi
+fi
+
+# Block files > 5MB
+while IFS= read -r f; do
+  if [ -f "$f" ] && [ "$(wc -c < "$f")" -gt 5242880 ]; then
+    echo -e "${RED:-}✗ File exceeds 5MB: ${f}${ENDCOLOR:-}"
+    echo "  Add to .gitignore or use git-lfs."
+    exit 1
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+echo -e "${GREEN:-}✓ pre-commit checks passed${ENDCOLOR:-}"

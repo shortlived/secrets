@@ -1,11 +1,10 @@
-# mise.toml — tool versions and environment for the Python 3 template
+# mise.toml — tool versions and environment for sls (Short-Lived Secrets)
 # Run `mise tasks` for a full list with descriptions.
 # Run `mise run <task>` to execute a task.
 # Docs: https://mise.jdx.dev/
 #
-# Template profile: python-3.14-uv-ty-ruff
-# This identifier is used by the mise-sync project to select which
-# task directory and git-hooks directory bundle to apply.
+# Pattern channel: python3a (orchestras/dev-patterns)
+# Run `mise run patterns:sync` to pull the latest hooks and tasks.
 
 [settings]
 experimental = true
@@ -25,9 +24,14 @@ VIRTUAL_ENV = "{{config_root}}/.venv"
 # Make scripts on PATH inside the venv
 PATH = "{{config_root}}/.venv/bin:{{env.PATH}}"
 
-# ─── Git hooks version ────────────────────────────────────────────────────────
-# Bump this SHA/tag when you want to sync a new hooks bundle.
-# The sync task reads this to know which ref to pull from orchestras/git-hooks.
+# ─── dev-patterns channel subscription ───────────────────────────────────────
+# Bump PATTERNS_VERSION to pin to a specific commit or tag.
+# Run `mise run patterns:sync` to pull the latest hooks and tasks.
+PATTERNS_REPO    = "orchestras/dev-patterns"
+PATTERNS_CHANNEL = "python3a"
+PATTERNS_VERSION = "main"
+
+# ─── Git hooks version (legacy, used by hooks:sync) ──────────────────────────
 GITHOOKS_VERSION = "main"
 GITHOOKS_REPO = "orchestras/git-hooks"
 

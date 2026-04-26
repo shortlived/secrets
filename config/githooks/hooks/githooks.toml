@@ -1,0 +1,45 @@
+# githooks.toml — Declarative git hook manifest for the python3a channel
+#
+# Format: TOML-based hook declarations (no YAML, no Node.js required).
+# Each [[hooks]] entry declares one hook script.
+#
+# Supported hook types (git standard):
+#   pre-commit, commit-msg, pre-push, post-checkout, post-merge,
+#   prepare-commit-msg, post-commit, pre-rebase, pre-receive, post-receive
+#
+# Fields:
+#   name     — git hook name (file that git invokes)
+#   script   — path relative to this manifest's directory
+#   description — human-readable purpose shown by patterns:setup
+#   enabled  — bool (default true); set false to skip installation
+#   fail_fast — bool (default true); if false, hook continues even on errors
+
+[channel]
+name    = "python3a"
+version = "0.1.0"
+description = "Git hooks and mise tasks for Python 3 projects using UV, Ruff, Ty, and Mise"
+author  = "orchestras"
+repo    = "orchestras/dev-patterns"
+
+# ─── Hook declarations ────────────────────────────────────────────────────────
+
+[[hooks]]
+name        = "pre-commit"
+script      = "pre-commit"
+description = "Lint (ruff), format-check (ruff), debug-statement guard, 5MB file cap, complexity (lizard)"
+enabled     = true
+fail_fast   = true
+
+[[hooks]]
+name        = "commit-msg"
+script      = "commit-msg"
+description = "Enforce Conventional Commits format on the first line of every commit message"
+enabled     = true
+fail_fast   = true
+
+[[hooks]]
+name        = "pre-push"
+script      = "pre-push"
+description = "Run full test suite and block pushes to main that bypass develop"
+enabled     = true
+fail_fast   = true

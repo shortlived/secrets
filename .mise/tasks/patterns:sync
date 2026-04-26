@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# mise description="Sync hooks and mise tasks from orchestras/dev-patterns channel"
+set -euo pipefail
+
+SCRIPT="${MISE_PROJECT_ROOT}/scripts/sync_patterns.sh"
+
+if [ ! -f "${SCRIPT}" ]; then
+  echo "sync_patterns.sh not found. Downloading from dev-patterns..."
+  mkdir -p "$(dirname "${SCRIPT}")"
+  curl -sSfL \
+    "https://raw.githubusercontent.com/orchestras/dev-patterns/main/scripts/sync_patterns.sh" \
+    -o "${SCRIPT}"
+  chmod +x "${SCRIPT}"
+fi
+
+"${SCRIPT}"

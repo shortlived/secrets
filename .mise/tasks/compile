@@ -37,7 +37,7 @@ pyinstaller \
   --distpath bin \
   --workpath build/pyinstaller \
   --specpath build \
-  src/python_template/__main__.py
+  src/sls/__main__.py
 
 echo ""
 echo "✓ Binary compiled: bin/${name}-${platform}"

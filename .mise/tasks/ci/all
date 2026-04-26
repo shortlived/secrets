@@ -17,14 +17,14 @@ if [ ! -f "${PYTHON}" ]; then
 fi
 
 echo "--- Lint ---"
-ruff check src/ tests/
+ruff check src/sls/ tests/
 
 echo "--- Format check ---"
-ruff format --check src/ tests/
+ruff format --check src/sls/ tests/
 
 echo "--- Tests with coverage ---"
 "${PYTHON}" -m pytest tests/ \
-  --cov=src/python_template \
+  --cov=src/sls \
   --cov-report=term-missing \
   --cov-report=xml:coverage.xml
 

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#MISE description="Check if patterns commit hash is current; auto-sync if stale"
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+PATTERNS_REPO="${PATTERNS_REPO:-orchestras/dev-patterns}"
+PATTERNS_CHANNEL="${PATTERNS_CHANNEL:-python3a}"
+HASH_FILE="${ROOT}/.patterns-hash"
+
+# ── Load cached hash ──────────────────────────────────────────────────────────
+cached_hash=""
+if [ -f "${HASH_FILE}" ]; then
+  cached_hash=$(cat "${HASH_FILE}" | tr -d '[:space:]')
+fi
+
+# ── Fetch latest HEAD hash from dev-patterns main ────────────────────────────
+latest_hash=""
+if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+  latest_hash=$(gh api "repos/${PATTERNS_REPO}/commits/main" \
+    --jq '.sha' 2>/dev/null || echo "")
+fi
+
+if [ -z "${latest_hash}" ]; then
+  # Fallback: curl the GitHub API without auth (rate-limited but works)
+  latest_hash=$(curl -sSf \
+    "https://api.github.com/repos/${PATTERNS_REPO}/commits/main" \
+    2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])" \
+    2>/dev/null || echo "")
+fi
+
+if [ -z "${latest_hash}" ]; then
+  echo "⚠  Could not fetch latest commit hash from ${PATTERNS_REPO}. Skipping hash check."
+  exit 0
+fi
+
+if [ "${cached_hash}" = "${latest_hash}" ]; then
+  echo "✓ Patterns are current (${latest_hash:0:8})"
+  exit 0
+fi
+
+echo "⟳ Patterns are stale (cached: ${cached_hash:0:8}, latest: ${latest_hash:0:8})"
+echo "  Running patterns:sync…"
+mise run patterns:sync

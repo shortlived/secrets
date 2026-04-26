@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#MISE description="Type-check the source with ty (falls back to pyright)"
+set -euo pipefail
+
+if command -v ty &>/dev/null; then
+  ty check src/
+elif python -c "import ty" &>/dev/null 2>&1; then
+  python -m ty check src/
+else
+  echo "ty not found — install with: uv tool install ty"
+  echo "Falling back to: python -m mypy src/ (if available)"
+  python -m mypy src/ --ignore-missing-imports || {
+    echo "Neither ty nor mypy found. Skipping type check."
+    exit 0
+  }
+fi

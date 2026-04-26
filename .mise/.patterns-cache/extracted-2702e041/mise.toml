@@ -1,0 +1,41 @@
+# mise.toml — tool versions and environment for dev-patterns
+# Run `mise tasks` for a full list with descriptions.
+# Run `mise run <task>` to execute a task.
+# Docs: https://mise.jdx.dev/
+#
+# Template profile: python-3.14-uv-ty-ruff
+# This identifier is used by patterns:sync to select which channel to apply.
+
+[settings]
+experimental = true
+
+[tools]
+python = "3.13"
+uv     = "latest"
+ruff   = "latest"
+
+# delta — better git diffs in the terminal
+delta = "latest"
+
+[env]
+# Ensure uv uses the project-local venv
+UV_PROJECT_ENVIRONMENT = "{{config_root}}/.venv"
+VIRTUAL_ENV            = "{{config_root}}/.venv"
+PATH                   = "{{config_root}}/.venv/bin:{{env.PATH}}"
+
+# ─── Patterns channel subscription ───────────────────────────────────────────
+# Set by patterns:setup / patterns:subscribe; checked before every sync.
+PATTERNS_REPO    = "orchestras/dev-patterns"
+PATTERNS_CHANNEL = "python3a"
+
+# ─── Git hooks integration ────────────────────────────────────────────────────
+# GITHOOKS_VERSION: git ref/tag/SHA on GITHOOKS_REPO to pull hooks from.
+# GITHOOKS_PROFILE: subfolder within lib/ in the hooks repo.
+# Bump GITHOOKS_VERSION to pull a new snapshot; use a SHA for pinned builds.
+GITHOOKS_VERSION = "main"
+GITHOOKS_REPO    = "orchestras/dev-patterns"
+GITHOOKS_PROFILE = "python3a"
+
+# ─── Task discovery ───────────────────────────────────────────────────────────
+[task_config]
+includes = [".mise/tasks"]

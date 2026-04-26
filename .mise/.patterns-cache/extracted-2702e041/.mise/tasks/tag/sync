@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Sync local tags with remote (fetch + prune stale)"
+set -euo pipefail
+git fetch --tags --prune --prune-tags origin
+echo "✓ Tags synced"
+git tag -l 'v*' --sort=-v:refname

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#MISE description="Release develop → main via rebase (no merge commits) and push"
+# Usage: mise run vcs:release
+#
+# Full flow:
+#   git checkout main
+#   git rebase origin/develop
+#   git push --force-with-lease origin main
+#
+# This is the final step after vcs:integrate has landed all features on develop.
+set -euo pipefail
+
+source "$(git rev-parse --show-toplevel)/scripts/colors.sh" 2>/dev/null || true
+
+original=$(git branch --show-current)
+
+echo -e "${CYAN:-}=== Releasing develop → main ===${ENDCOLOR:-}"
+
+# ── Fetch everything ──────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE:-}1/3 Fetching origin...${ENDCOLOR:-}"
+git fetch origin develop main
+echo -e "${GREEN:-}  ✓ fetched${ENDCOLOR:-}"
+
+# ── Ensure develop is up to date locally ─────────────────────────────────────
+echo ""
+echo -e "${BLUE:-}2/3 Checking out main and rebasing onto origin/develop...${ENDCOLOR:-}"
+git checkout main
+# Pull any remote-only main commits first (idempotent if already current)
+git pull --rebase origin main 2>/dev/null || true
+
+git rebase origin/develop
+
+echo -e "${GREEN:-}  ✓ main rebased onto origin/develop${ENDCOLOR:-}"
+
+# ── Push main ────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE:-}3/3 Pushing main...${ENDCOLOR:-}"
+git push --force-with-lease origin main
+echo -e "${GREEN:-}  ✓ main pushed${ENDCOLOR:-}"
+
+echo ""
+echo -e "${GREEN:-}✓ Released: develop → main${ENDCOLOR:-}"
+echo ""
+echo "Next steps:"
+echo "  mise run bump:patch   (or :minor / :major) — bump version and create tag"
+echo "  mise run tag:push     — push tag → triggers binary release workflow"
+
+# Return to original branch
+if [ "${original}" != "main" ] && git show-ref --quiet "refs/heads/${original}" 2>/dev/null; then
+  git checkout "${original}" 2>/dev/null || true
+fi

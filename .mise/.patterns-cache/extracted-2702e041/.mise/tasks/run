@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Run the dev-patterns CLI"
+set -euo pipefail
+python -m dev_patterns "$@"

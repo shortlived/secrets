@@ -27,15 +27,15 @@ jobs:
         run: uv sync
 
       - name: Lint (ruff check)
-        run: uv run ruff check src/ tests/
+        run: uv run ruff check src/sls/ tests/
 
       - name: Format check (ruff format)
-        run: uv run ruff format --check src/ tests/
+        run: uv run ruff format --check src/sls/ tests/
 
       - name: Run tests with coverage
         run: |
           uv run python -m pytest tests/ \
-            --cov=src/python_template \
+            --cov=src/sls \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml
 

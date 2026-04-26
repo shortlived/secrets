@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#MISE description="Integrate an approved feature branch into develop via rebase (no merge commits)"
+# Usage: mise run vcs:integrate
+#        mise run vcs:integrate feat/my-feature   (explicit branch)
+#
+# Full flow executed:
+#   1. Ensure feature branch is rebased onto origin/develop (calls vcs:rebase)
+#   2. Switch to develop, pull latest
+#   3. Rebase develop onto the feature branch tip  (fast-forward history)
+#   4. push --force-with-lease origin develop
+set -euo pipefail
+
+source "$(git rev-parse --show-toplevel)/scripts/colors.sh" 2>/dev/null || true
+
+original=$(git branch --show-current)
+
+# Accept an explicit branch name or use current branch
+feature="${1:-${original}}"
+
+if [ -z "$feature" ] || [ "$feature" = "develop" ] || [ "$feature" = "main" ]; then
+  echo -e "${RED:-}ERROR: pass a feature branch name, e.g.:${ENDCOLOR:-}"
+  echo "  mise run vcs:integrate feat/my-feature"
+  exit 1
+fi
+
+echo -e "${CYAN:-}=== Integrating '${feature}' into develop ===${ENDCOLOR:-}"
+
+# ── Step 1: ensure feature branch is up to date ───────────────────────────────
+echo ""
+echo -e "${BLUE:-}1/4 Ensuring feature branch is rebased onto origin/develop...${ENDCOLOR:-}"
+git checkout "${feature}"
+git fetch origin develop
+git pull --rebase origin develop
+
+# Commit any pending autoStash residue (rare but safe)
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  msg="${feature}: rebase onto develop (chore)"
+  git add -A
+  git commit -m "${msg}"
+  echo -e "${YELLOW:-}  Committed: ${msg}${ENDCOLOR:-}"
+fi
+echo -e "${GREEN:-}  ✓ '${feature}' is current${ENDCOLOR:-}"
+
+# ── Step 2: switch to develop and pull ────────────────────────────────────────
+echo ""
+echo -e "${BLUE:-}2/4 Updating develop...${ENDCOLOR:-}"
+git checkout develop
+git pull origin develop
+echo -e "${GREEN:-}  ✓ develop is current${ENDCOLOR:-}"
+
+# ── Step 3: rebase develop onto feature ───────────────────────────────────────
+echo ""
+echo -e "${BLUE:-}3/4 Rebasing develop onto '${feature}'...${ENDCOLOR:-}"
+git rebase "${feature}"
+echo -e "${GREEN:-}  ✓ develop rebased${ENDCOLOR:-}"
+
+# ── Step 4: push develop ──────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE:-}4/4 Pushing develop...${ENDCOLOR:-}"
+git push --force-with-lease origin develop
+echo -e "${GREEN:-}  ✓ develop pushed${ENDCOLOR:-}"
+
+echo ""
+echo -e "${GREEN:-}✓ '${feature}' integrated into develop${ENDCOLOR:-}"
+echo ""
+echo "To release develop → main:"
+echo "  mise run vcs:release"
+
+# Return to original branch if we can
+if [ "${original}" != "develop" ] && git show-ref --quiet "refs/heads/${original}" 2>/dev/null; then
+  git checkout "${original}" 2>/dev/null || true
+fi

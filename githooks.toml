@@ -1,0 +1,12 @@
+# githooks.toml — dev-patterns channel subscription
+#
+# This file declares which patterns channel this repository subscribes to.
+# Run `mise run patterns:sync` (or `./scripts/sync_patterns.sh`) to pull
+# the latest hooks and mise tasks from the orchestras/dev-patterns repo.
+#
+# Docs: https://github.com/orchestras/dev-patterns
+
+[subscription]
+repo    = "orchestras/dev-patterns"
+channel = "python3a"
+version = "main"

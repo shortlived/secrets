@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Show local version tags sorted by semver"
+set -euo pipefail
+git tag -l 'v*' --sort=-v:refname

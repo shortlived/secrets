@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#MISE description="Sync tasks and hooks from the patterns channel (dev-patterns repo)"
+set -euo pipefail
+
+# ── Terminal colours ──────────────────────────────────────────────────────────
+CYAN='\033[0;36m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; BOLD='\033[1m'; RESET='\033[0m'
+CHECK="✓"; ARROW="→"; SPIN="⟳"
+
+ROOT="$(git rev-parse --show-toplevel)"
+PATTERNS_REPO="${PATTERNS_REPO:-orchestras/dev-patterns}"
+PATTERNS_CHANNEL="${PATTERNS_CHANNEL:-python3a}"
+HASH_FILE="${ROOT}/.patterns-hash"
+CACHE_DIR="${ROOT}/.mise/.patterns-cache"
+
+echo -e "${CYAN}${BOLD}Patterns Sync${RESET}"
+echo -e "  ${BLUE}${ARROW}${RESET} Repo:    ${PATTERNS_REPO}"
+echo -e "  ${BLUE}${ARROW}${RESET} Channel: ${PATTERNS_CHANNEL}"
+echo ""
+
+# ── Fetch latest commit hash ──────────────────────────────────────────────────
+echo -e "  ${SPIN} Fetching latest commit hash…"
+latest_hash=""
+if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+  latest_hash=$(gh api "repos/${PATTERNS_REPO}/commits/main" \
+    --jq '.sha' 2>/dev/null || echo "")
+fi
+if [ -z "${latest_hash}" ]; then
+  latest_hash=$(curl -sSf \
+    "https://api.github.com/repos/${PATTERNS_REPO}/commits/main" \
+    2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])" \
+    2>/dev/null || echo "")
+fi
+if [ -z "${latest_hash}" ]; then
+  echo -e "  ${YELLOW}⚠  Could not fetch commit hash. Skipping sync.${RESET}"
+  exit 0
+fi
+
+# ── Skip if already current ───────────────────────────────────────────────────
+cached_hash=""
+[ -f "${HASH_FILE}" ] && cached_hash=$(cat "${HASH_FILE}" | tr -d '[:space:]')
+if [ "${cached_hash}" = "${latest_hash}" ]; then
+  echo -e "  ${GREEN}${CHECK} Already current (${latest_hash:0:8})${RESET}"
+  exit 0
+fi
+
+echo -e "  ${SPIN} Downloading channel tarball (${latest_hash:0:8})…"
+
+mkdir -p "${CACHE_DIR}"
+
+TARBALL="${CACHE_DIR}/patterns-${latest_hash:0:8}.tar.gz"
+if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+  gh api "repos/${PATTERNS_REPO}/tarball/main" \
+    --header "Accept: application/vnd.github+json" \
+    > "${TARBALL}" 2>/dev/null || \
+  curl -sSfL "https://github.com/${PATTERNS_REPO}/archive/main.tar.gz" \
+    -o "${TARBALL}"
+else
+  curl -sSfL "https://github.com/${PATTERNS_REPO}/archive/main.tar.gz" \
+    -o "${TARBALL}"
+fi
+
+# ── Extract ───────────────────────────────────────────────────────────────────
+EXTRACT_DIR="${CACHE_DIR}/extracted-${latest_hash:0:8}"
+rm -rf "${EXTRACT_DIR}"
+mkdir -p "${EXTRACT_DIR}"
+tar -xzf "${TARBALL}" -C "${EXTRACT_DIR}" --strip-components=1
+
+CHANNEL_DIR="${EXTRACT_DIR}/lib/${PATTERNS_CHANNEL}"
+if [ ! -d "${CHANNEL_DIR}" ]; then
+  echo -e "  ${YELLOW}⚠  Channel directory not found: lib/${PATTERNS_CHANNEL}${RESET}"
+  exit 1
+fi
+
+# ── Sync everything under lib/$channel/ ──────────────────────────────────────
+# Tasks
+if [ -d "${CHANNEL_DIR}/mise/tasks" ]; then
+  echo -e "  ${SPIN} Syncing mise tasks…"
+  mkdir -p "${ROOT}/.mise/tasks"
+  cp -r "${CHANNEL_DIR}/mise/tasks/." "${ROOT}/.mise/tasks/"
+  find "${ROOT}/.mise/tasks" -type f -exec chmod +x {} \;
+  echo -e "  ${GREEN}${CHECK} Tasks synced → .mise/tasks/${RESET}"
+fi
+
+# Hooks
+if [ -d "${CHANNEL_DIR}/hooks" ]; then
+  echo -e "  ${SPIN} Syncing git hooks…"
+  mkdir -p "${ROOT}/config/githooks/hooks"
+  # Copy everything except githooks.toml manifest (keep that too, for reference)
+  cp -r "${CHANNEL_DIR}/hooks/." "${ROOT}/config/githooks/hooks/"
+  find "${ROOT}/config/githooks/hooks" -type f ! -name "*.toml" -exec chmod +x {} \;
+  echo -e "  ${GREEN}${CHECK} Hooks synced → config/githooks/hooks/${RESET}"
+fi
+
+# Any other top-level items (scripts, configs, etc.)
+for item in "${CHANNEL_DIR}"/*; do
+  base=$(basename "${item}")
+  # Skip already-handled dirs
+  [[ "${base}" == "mise" || "${base}" == "hooks" ]] && continue
+  dest="${ROOT}/${base}"
+  if [ -d "${item}" ]; then
+    mkdir -p "${dest}"
+    cp -r "${item}/." "${dest}/"
+  else
+    cp "${item}" "${dest}"
+  fi
+  echo -e "  ${GREEN}${CHECK} Synced ${base}${RESET}"
+done
+
+# ── Write hash file ───────────────────────────────────────────────────────────
+echo "${latest_hash}" > "${HASH_FILE}"
+
+echo ""
+echo -e "${GREEN}${BOLD}${CHECK} Patterns synced${RESET} (${PATTERNS_CHANNEL} @ ${latest_hash:0:8})"

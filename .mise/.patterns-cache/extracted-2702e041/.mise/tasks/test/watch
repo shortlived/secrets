@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Run tests in watch mode (requires pytest-watch)"
+set -euo pipefail
+if command -v ptw &>/dev/null; then
+  ptw -- tests/
+else
+  echo "Install pytest-watch: uv add --dev pytest-watch"
+  python -m pytest tests/
+fi

@@ -1,28 +1,17 @@
-"""Tests for the version module."""
+"""Tests for the sls version module."""
 
 from __future__ import annotations
 
-import re
 
-import pytest
-
-from python_template.version import __version__
-
-
-@pytest.mark.unit
-def test_version_is_string() -> None:
-    """Version should be a string."""
-    assert isinstance(__version__, str)
+def test_version_is_string(app_version: str) -> None:
+    """Version is a non-empty string."""
+    assert isinstance(app_version, str)
+    assert len(app_version) > 0
 
 
-@pytest.mark.unit
-def test_version_matches_semver() -> None:
-    """Version should be a valid semver string."""
-    semver_pattern = r"^v?\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$"
-    assert re.match(semver_pattern, __version__), f"Invalid semver: {__version__!r}"
-
-
-@pytest.mark.unit
-def test_version_not_empty() -> None:
-    """Version should not be empty."""
-    assert __version__.strip()
+def test_version_semver_format(app_version: str) -> None:
+    """Version follows MAJOR.MINOR.PATCH format."""
+    parts = app_version.split(".")
+    assert len(parts) >= 3
+    for part in parts[:3]:
+        assert part.split("-")[0].isdigit()
